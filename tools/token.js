@@ -155,28 +155,38 @@ export async function getTokenHolders({ mint, limit = 20 }) {
   if (smartWallets.length > 0) {
     const addresses = smartWallets.map((w) => w.address).join(",");
     const pnlRes = await fetch(
-      `${DATAPI_BASE}/pnl?addresses=${addresses}&includeClosed=true`
+      `${DATAPI_BASE}/pnl?addresses=${addresses}&includeClosed=false`
     ).catch(() => null);
     const pnlData = pnlRes?.ok ? await pnlRes.json() : null;
 
+    // Response shape: { walletAddress: { tokenMint: { balance, price, pnl } } }
     for (const wallet of smartWallets) {
-      const pnl = pnlData?.[wallet.address] ?? null;
-      // Check if this wallet holds the target token
-      const tokenPnl = Array.isArray(pnl)
-        ? pnl.find((p) => p.mint === mint || p.token === mint)
-        : pnl?.tokens?.find?.((p) => p.mint === mint || p.token === mint);
-      if (!tokenPnl) continue;
+      const walletData = pnlData?.[wallet.address];
+      if (!walletData) continue;
+      const tokenData = walletData[mint];
+      if (!tokenData) continue;
 
-      // Check if they appear in top 100 for rank/pct info
       const holderEntry = mapped.find((h) => h.address === wallet.address);
       smartWalletsHolding.push({
         name: wallet.name,
         category: wallet.category,
         address: wallet.address,
         in_top_100: !!holderEntry,
-        amount: holderEntry?.amount ?? tokenPnl.balance ?? tokenPnl.amount,
+        amount: holderEntry?.amount ?? tokenData.balance?.balance,
         pct: holderEntry?.pct ?? null,
-        pnl: tokenPnl,
+        balance: tokenData.balance ?? null,
+        price: tokenData.price ?? null,
+        pnl: tokenData.pnl ? {
+          realized_pnl: tokenData.pnl.realizedPnl,
+          unrealized_pnl: tokenData.pnl.unrealizedPnl,
+          total_pnl: tokenData.pnl.totalPnl,
+          total_pnl_pct: tokenData.pnl.totalPnlPercentage,
+          bought_value: tokenData.pnl.boughtValue,
+          sold_value: tokenData.pnl.soldValue,
+          size: tokenData.pnl.size,
+          first_active: tokenData.pnl.firstActiveTime,
+          last_active: tokenData.pnl.lastActiveTime,
+        } : null,
       });
     }
   }
