@@ -1,3 +1,6 @@
+
 {
-  "maxSteps": 35
+  "maxSteps": 35,
+  "outOfRangeWaitMinutes": 20,
+  "emergencyPriceDropPct": 10
 }
